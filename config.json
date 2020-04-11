@@ -1,0 +1,10 @@
+{
+  "REPORT_SIZE": 100,
+  "REPORT_DIR": "reports",
+  "LOG_DIR": "log",
+  "TS_F_PATH": "log_analyzer.ts",
+  "LOGFILE_PATH": "log_analyzer.log",
+  "LOGFILE_FORMAT": "[%(asctime)s] %(levelname).1s %(message)s",
+  "LOGFILE_DATE_FORMAT": "%Y.%m.%d %H:%M:%S",
+  "MAX_MISMATCH_PERC": 10
+}
