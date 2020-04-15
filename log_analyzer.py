@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # TODO: update readme
+# TODO: verbose comments and docstrings
 # TODO: translate comments to English
 # TODO: update tests
 
@@ -11,28 +12,12 @@ import io
 import json
 import sys
 import logging
+import time
+import re
+import datetime
 
-# import re
-# import collections
-# import datetime
 # import gzip
-# import time
-
-# log_format ui_short '$remote_addr $remote_user $http_x_real_ip [$time_local] "$request" '  # noqa
-#                     '$status $body_bytes_sent "$http_referer" '  # noqa
-#                     '"$http_user_agent" "$http_x_forwarded_for" "$http_X_REQUEST_ID" "$http_X_RB_USER" '  # noqa
-#                     '$request_time';  # noqa
-
-# log_search_pattern = re.compile('nginx-access-ui\.log-[0-9]{4}[0-9]{2}[0-9]{2}')  # noqa
-# log_date = re.compile('[0-9]{4}[0-9]{2}[0-9]{2}')
-#
-# web_server_LOG_SEARCH_PATTERNS = (r''
-#                                   r'^\S+\s\S+\s{2}\S+\s\[.*?\]\s'
-#                                   r'\"\S+\s(\S+)\s\S+\"\s'
-#                                   r'\S+\s\S+\s.+?\s\".+?\"\s\S+\s\S+\s\S+\s'
-#                                   r'(\S+)')
-#
-# web_server_LOG_SEARCH = re.compile(web_server_LOG_SEARCH_PATTERNS)
+# import collections
 
 
 def singleton_decorator(cls):
@@ -98,6 +83,14 @@ class Utils:
         __, file_ext = os.path.splitext(file_name)
         assert file_ext == extension
 
+    @staticmethod
+    def str_to_date(date_str: str, date_fmt: str):
+        try:
+            converted = datetime.datetime.strptime(date_str, date_fmt).date()
+        except (TypeError, ValueError) as conversion_error:
+            raise ValueError(conversion_error)
+        return converted
+
 
 @singleton_decorator
 class Config(Utils):
@@ -106,7 +99,11 @@ class Config(Utils):
         report_size: количество url с наибольшим суммарным временем обработки для сохранены в отчете
         max_mismatch_percent: % при котором структура обрабатываемого файла считается корректной
         log_dir: каталог с обрабатываемыми логами
+        log_name_pattern: регулярное выражение по которому будут искаться файлы с логами в каталоге log_dir
+        log_name_date_pattern: формат даты для поиска в log_name_pattern
         report_dir: каталог для сохранятения итоговый отчет
+        date_fmt: внутренний формат даты для сравнения
+        min_log_date: минимальная дата лога Nginx для поиска
 
     Параметры логгирования работы:
         log_level: уровень логгирования
@@ -127,7 +124,11 @@ class Config(Utils):
         self.max_mismatch_percent = 10
         self.logfile_format = "[%(asctime)s] %(levelname).1s %(message)s"
         self.logfile_date_format = "%Y.%m.%d %H:%M:%S"
+        self.date_fmt = "%Y%m%d"
+        self.min_log_date = "19700101"
         self.log_dir = "log"
+        self.log_name_pattern = r"nginx-access-ui\.log-[\d]{8}"
+        self.log_name_date_pattern = r"[\d]{8}"
         self.report_dir = "reports"
         self.log_level = "INFO"
         # empty strings for proper config_template output
@@ -136,6 +137,24 @@ class Config(Utils):
 
         if config_file:
             self.load(config_file)
+
+    @property
+    def date_fmt(self):
+        return self.__date_fmt
+
+    @date_fmt.setter
+    def date_fmt(self, fmt: str):
+        assert (isinstance(fmt, str))
+        self.__date_fmt = fmt
+
+    @property
+    def min_log_date(self):
+        return self.__min_log_date
+
+    @min_log_date.setter
+    def min_log_date(self, date: str):
+        assert (isinstance(date, str))
+        self.__min_log_date = date
 
     @property
     def report_size(self):
@@ -167,6 +186,24 @@ class Config(Utils):
         assert (isinstance(directory, str))
         self.check_file_path(directory)
         self.__log_dir = directory
+
+    @property
+    def log_name_pattern(self):
+        return self.__log_name_pattern
+
+    @log_name_pattern.setter
+    def log_name_pattern(self, pattern: str):
+        assert (isinstance(pattern, str))
+        self.__log_name_pattern = pattern
+
+    @property
+    def log_name_date_pattern(self):
+        return self.__log_name_date_pattern
+
+    @log_name_date_pattern.setter
+    def log_name_date_pattern(self, pattern: str):
+        assert (isinstance(pattern, str))
+        self.__log_name_date_pattern = pattern
 
     @property
     def logfile_format(self):
@@ -212,12 +249,14 @@ class Config(Utils):
 
     @property
     def log_level(self):
+        # TODO: при экспорте конфигурации экспортируется число
         return self.__log_level
 
     @log_level.setter
     def log_level(self, level: str):
         assert (isinstance(level, str))
-        # TODO: заменить на Enum с полным  перечислением
+
+        # TODO: полное перечисление типов или Enum
         if level.upper() == 'INFO':
             level = logging.INFO
         elif level.upper() == 'DEBUG':
@@ -307,153 +346,161 @@ def parse_args():
     return parser.parse_args()
 
 
-# TODO: Analyzer class
-# TODO: не обработано
-# def make_web_server_logs_list(log_dir):
-#     """ Make a list of web server logs """
-#
-#     web_server_logs_list = []
-#     for __, __, filelist in os.walk(log_dir):
-#         for file in filelist:
-#             if log_search_pattern.match(file):
-#                 web_server_logs_list.append(file)
-#     return web_server_logs_list
-#
-#
-# def find_max_log_date(web_server_logs_list):
-#     """Find max log date in list"""
-#
-#     max_log_date = datetime.datetime.strptime(log_date.search(web_server_logs_list[0]).group(), '%Y%m%d').date()  # noqa
-#     max_log_f_name = web_server_logs_list[0]
-#     for web_server_log_file in web_server_logs_list:
-#         local_log_date = datetime.datetime.strptime(log_date.search(web_server_log_file).group(), '%Y%m%d').date()  # noqa
-#         if local_log_date > max_log_date:
-#             max_log_date = local_log_date
-#             max_log_f_name = web_server_log_file
-#     return max_log_f_name
-#
-#
-# def find_log(log_dir):
-#     """ Find the newest log in the list """
-#
-#     max_log_f_name = None
-#     web_server_logs_list = make_web_server_logs_list(log_dir)
-#     if len(web_server_logs_list) > 0:
-#         max_log_f_name = find_max_log_date(web_server_logs_list)
-#         logging.info('Found web_server log-files: ' + ', '.join(web_server_logs_list))  # noqa
-#     else:
-#         logging.info('web_server log-file not found')
-#
-#     return max_log_f_name
-#
-#
-# def read_log(log_f_name):
-#     """ Line by line read the log file """
-#     # TODO: Такое использование менеджера контекста кажется сомнительным
-#
-#     if log_f_name.endswith(".gz"):
-#         log_type = gzip.open
-#     else:
-#         log_type = open
-#
-#     with log_type(log_f_name, 'rt') as log:
-#         for line in log:
-#             if line:
-#                 yield line
-#
-#
-# def parse_line(log_line):
-#     """ Find the line in the log url and time """
-#
-#     grp = web_server_LOG_SEARCH.match(log_line)
-#     if grp:
-#         col_names = ('request_url', 'request_time')
-#         parsed_line = (dict(zip(col_names, grp.groups())))
-#         if parsed_line['request_time'] != '-':
-#             parsed_line['request_time'] = float(parsed_line['request_time'])
-#         else:
-#             parsed_line['request_time'] = 0
-#         return parsed_line
-#     return None
-#
-#
-# def add_file_logging(logfile,
-#                      log_format='[%(asctime)s] %(levelname).1s %(message)s',
-#                      log_date_format="%Y.%m.%d %H:%M:%S"):
-#     """ Duplicate the log of the script in the file """
-#
-#     file_handler = logging.FileHandler(logfile)
-#     file_handler.setLevel(logging.INFO)
-#     formatter = logging.Formatter(log_format, datefmt=log_date_format)
-#     file_handler.setFormatter(formatter)
-#     logging.getLogger().addHandler(file_handler)
-#
-#
-# def goodbye(ts_f_path):
-#     """ Save the timestamp to a file and exit """
-#
-#     logging.info('Program completed successfully. TS-file:' + str(ts_f_path))
-#     with io.open(ts_f_path, mode='w', encoding='utf-8') as ts_file:
-#         ts_time = str(round(time.time(), 0))
-#         ts_file.write(ts_time.encode().decode())
-#     sys.exit(0)
-#
-#
-# def save_report(report, file_path):
-#     """ Save the sample report file from reports/report.html """
-#
-#     with io.open(make_backup_path('reports/report.html'), mode='r', encoding='utf-8') as f:  # noqa
-#         file_data = f.read()
-#     file_data = file_data.replace('$table_json', json.dumps(report))
-#     with io.open(file_path, mode='w', encoding='utf-8') as f:
-#         f.write(file_data)
-#
-#
-# def median(numbers_list):
-#     """ Consider a median """
-#
-#     numbers_list = sorted(numbers_list)
-#     return numbers_list[int(len(numbers_list) / 2)]
-#
-#
-# def make_report(log_stat, total_count, total_time, limit=100):
-#     """ Make report with stats
-#         count - how many times does the url, the absolute value, occur
-#         count_percentage - how many times does a url occur as a percentage of the total number of requests  # noqa
-#         time_sum - total for this URL request_time, absolute value
-#         time_percent - total for this URL request_time, in percent relative to the total request_time all queries  # noqa
-#         time_avg - average request_time for a given URL
-#         time_max - request_time maximum for the given URL
-#         time_med - request_time median for the given URL
-#     """
-#     # TODO: описать возвращаемые и входящие типы
-#     report_data = []
-#     for url, times in iter(log_stat.items()):
-#         count = len(times)
-#         count_percentage = count / float(total_count / 100)
-#         time_sum = sum(times)
-#         time_percent = time_sum / float(total_time / 100)
-#         time_avg = time_sum / count
-#         time_max = max(times)
-#         time_med = median(times)
-#
-#         report_data.append({"count": count,
-#                             "time_avg": round(time_avg, 3),
-#                             "time_max": round(time_max, 3),
-#                             "time_sum": round(time_sum, 3),
-#                             "url": url,
-#                             "time_med": round(time_med, 3),
-#                             "time_percent": round(time_percent, 3),
-#                             "count_percentage": round(count_percentage, 3)
-#                             })
-#
-#     report_data.sort(key=lambda x: x['time_sum'], reverse=True)
-#
-#     return report_data[:limit]
-#
+class Analyzer(Utils):
+
+    def __init__(self, config: Config, log: Logging):
+        """
+        log: собственный логгер для вывода сообщений
+        """
+        # TODO: ref
+
+        self.log = log
+        self.date_fmt = config.date_fmt
+
+        self.log_dir = self.check_file_path(config.log_dir)
+        self.log_name_pattern = config.log_name_pattern
+        self.log_name_date_pattern = config.log_name_date_pattern
+
+        self.min_log_date = self.str_to_date(config.min_log_date, config.date_fmt)  # noqa
+
+        log.debug('Analyzer initialization complete.')
+
+    @property
+    def nginx_log_name_re(self):
+        return re.compile(self.log_name_pattern)
+
+    # @property
+    # def web_server_log_pattern(self):
+    #     # TODO: update
+    #     # TODO: rename
+    #     return (r''
+    #             r'^\S+\s\S+\s{2}\S+\s\[.*?\]\s'
+    #             r'\"\S+\s(\S+)\s\S+\"\s'
+    #             r'\S+\s\S+\s.+?\s\".+?\"\s\S+\s\S+\s\S+\s'
+    #             r'(\S+)')
+
+    # @property
+    # def web_server_LOG_SEARCH(self):
+    #     # TODO: update
+    #     # TODO: rename
+    #     return re.compile(self.web_server_log_pattern)
+    #
+    # @property
+    # def web_server_LOG_SEARCH(self):
+    #      return re.compile(self.web_server_log_pattern)
+
+    @property
+    def log_date_re(self):
+        return re.compile(self.log_name_date_pattern)
+
+    @property
+    def web_server_log_gen(self):
+        """ Generator through web server logs """
+
+        return ((file for file in file_list if self.nginx_log_name_re.match(file)) for __, __, file_list in  # noqa
+                os.walk(self.log_dir))
+
+    @property
+    def latest_log(self):
+        """ Find the newest log in the self.log_dir """
+
+        max_log_date, max_log_f_name = self.min_log_date, None
+
+        for log_file in next(self.web_server_log_gen):
+            log_date = self.str_to_date(self.log_date_re.search(log_file).group(),
+                                        self.date_fmt)
+
+            if log_date >= max_log_date:
+                max_log_date, max_log_f_name = log_date, log_file
+
+        if max_log_f_name:
+            self.log.info('Latest Nginx log file: {}'.format(max_log_f_name))
+            return max_log_f_name
+
+        raise FileExistsError('Web server log file not found.')
+    #
+    # def read_log_gen(self, log_f_name):
+    #     """ Line by line read the log file """
+    #
+    #     log_type = gzip.open if log_f_name.endswith(".gz") else open
+    #
+    #     with log_type(log_f_name, 'rt') as log:
+    #         for line in log:
+    #             if line:
+    #                 yield line
+    #
+    # def parse_line(self, log_line):
+    #     """ Find the line in the log url and time """
+    #
+    #     grp = self.web_server_LOG_SEARCH.match(log_line)
+    #     if grp:
+    #         col_names = ('request_url', 'request_time')
+    #         parsed_line = (dict(zip(col_names, grp.groups())))
+    #         if parsed_line['request_time'] != '-':
+    #             parsed_line['request_time'] = float(parsed_line['request_time'])
+    #         else:
+    #             parsed_line['request_time'] = 0
+    #         return parsed_line
+    #     return None
+    #
+    # def save_report(self, report, file_path):
+    #     """ Save the sample report file from reports/report.html """
+    #     # TODO: update
+    #     with io.open(self.check_file_path('reports/report.html'), mode='r', encoding='utf-8') as f:  # noqa
+    #         file_data = f.read()
+    #     file_data = file_data.replace('$table_json', json.dumps(report))
+    #     with io.open(file_path, mode='w', encoding='utf-8') as f:
+    #         f.write(file_data)
+    #
+    # def median(self, numbers_list):
+    #     """ Consider a median """
+    #     # TODO: update
+    #     numbers_list = sorted(numbers_list)
+    #     return numbers_list[int(len(numbers_list) / 2)]
+    #
+    # def make_report(self, log_stat, total_count, total_time, limit=100):
+    #     """ Make report with stats
+    #         count - how many times does the url, the absolute value, occur
+    #         count_percentage - how many times does a url occur as a percentage of the total number of requests  # noqa
+    #         time_sum - total for this URL request_time, absolute value
+    #         time_percent - total for this URL request_time, in percent relative to the total request_time all queries  # noqa
+    #         time_avg - average request_time for a given URL
+    #         time_max - request_time maximum for the given URL
+    #         time_med - request_time median for the given URL
+    #     """
+    #     # TODO: update
+    #     # TODO: описать возвращаемые и входящие типы
+    #     report_data = []
+    #     for url, times in iter(log_stat.items()):
+    #         count = len(times)
+    #         count_percentage = count / float(total_count / 100)
+    #         time_sum = sum(times)
+    #         time_percent = time_sum / float(total_time / 100)
+    #         time_avg = time_sum / count
+    #         time_max = max(times)
+    #         time_med = self.median(times)
+    #
+    #         report_data.append({"count": count,
+    #                             "time_avg": round(time_avg, 3),
+    #                             "time_max": round(time_max, 3),
+    #                             "time_sum": round(time_sum, 3),
+    #                             "url": url,
+    #                             "time_med": round(time_med, 3),
+    #                             "time_percent": round(time_percent, 3),
+    #                             "count_percentage": round(count_percentage, 3)
+    #                             })
+    #
+    #     report_data.sort(key=lambda x: x['time_sum'], reverse=True)
+    #
+    #     return report_data[:limit]
+
+    def run(self):
+        """Обработчик для вызова"""
+        self.latest_log
 
 
 def main():
+    # TODO: logging.exception(E, exc_info=True)
     args = parse_args()
     if args.template:
         log = Logging(None, None)
@@ -466,60 +513,59 @@ def main():
     log.debug('Initialization completed.')
 
     try:
-        pass
+        Analyzer(config=user_config, log=log).run()
+        #
+        #
+        #
+        # if last_log_name:
+        #     report_date_format = datetime.datetime.strptime(log_date.search(last_log_name).group(), '%Y%m%d').strftime(  # noqa
+        #         '%Y.%m.%d')
+        #     report_file_name = os.path.join(
+        #         make_backup_path(user_config.get('REPORT_DIR')),
+        #         'report-' + report_date_format + '.html')
+        #     logging.info('Check ' + report_file_name + ' for exist')
+        #
+        #     if os.path.exists(report_file_name):
+        #         logging.info('Report file already exists. Exit')
+        #         goodbye(user_config.get('TS_F_PATH', 'log_analyzer.ts'))
+        #
+        #     logging.info('report file not found. Begin to parse')
+        #     logging.info('Will parse ' + last_log_name)
+        #     total_count = mismatch_count = total_matched_count = total_time = 0
+        #     log_stat = collections.defaultdict(list)
+        #     last_log_name = os.path.join(make_backup_path(user_config.get('LOG_DIR')), last_log_name)  # noqa
+        #
+        #     for line in read_log(last_log_name):
+        #         parsed_line = parse_line(line)
+        #         total_count += 1
+        #         if parsed_line:
+        #             total_matched_count += 1
+        #             total_time += parsed_line['request_time']
+        #             log_stat[parsed_line['request_url']].append(parsed_line['request_time'])
+        #         else:
+        #             mismatch_count += 1
+        #
+        #         if (mismatch_count > 10) and (
+        #                 (mismatch_count * 100) / total_count > user_config.get('MAX_MISMATCH_PERC', 10)):  # noqa
+        #             logging.error('Mismatch count exceeded. Check web_server log format type')  # noqa
+        #             sys.exit(1)
+        #
+        #     if total_matched_count > 0 and total_time > 0:
+        #         log_report = make_report(log_stat, total_matched_count, total_time, user_config.get('REPORT_SIZE'))  # noqa
+        #         save_report(log_report, report_file_name)
+        #         logging.info("Log parsed successfully")
+
     except AssertionError as error_msg:
         log.error(str(error_msg))
         sys.exit(1)
     else:
-        pass
-        # TODO: log time
-        # goodbye(user_config.get('TS_F_PATH', 'log_analyzer.ts'))
-
-# try:
-#     last_log_name = find_log(make_backup_path(user_config['LOG_DIR']))
-#
-#     if last_log_name:
-#         report_date_format = datetime.datetime.strptime(log_date.search(last_log_name).group(), '%Y%m%d').strftime(  # noqa
-#             '%Y.%m.%d')
-#         report_file_name = os.path.join(
-#             make_backup_path(user_config.get('REPORT_DIR')),
-#             'report-' + report_date_format + '.html')
-#         logging.info('Check ' + report_file_name + ' for exist')
-#
-#         if os.path.exists(report_file_name):
-#             logging.info('Report file already exists. Exit')
-#             goodbye(user_config.get('TS_F_PATH', 'log_analyzer.ts'))
-#
-#         logging.info('report file not found. Begin to parse')
-#         logging.info('Will parse ' + last_log_name)
-#         total_count = mismatch_count = total_matched_count = total_time = 0
-#         log_stat = collections.defaultdict(list)
-#         last_log_name = os.path.join(make_backup_path(user_config.get('LOG_DIR')), last_log_name)  # noqa
-#
-#         for line in read_log(last_log_name):
-#             parsed_line = parse_line(line)
-#             total_count += 1
-#             if parsed_line:
-#                 total_matched_count += 1
-#                 total_time += parsed_line['request_time']
-#                 log_stat[parsed_line['request_url']].append(parsed_line['request_time'])
-#             else:
-#                 mismatch_count += 1
-#
-#             if (mismatch_count > 10) and (
-#                     (mismatch_count * 100) / total_count > user_config.get('MAX_MISMATCH_PERC', 10)):  # noqa
-#                 logging.error('Mismatch count exceeded. Check web_server log format type')  # noqa
-#                 sys.exit(1)
-#
-#         if total_matched_count > 0 and total_time > 0:
-#             log_report = make_report(log_stat, total_matched_count, total_time, user_config.get('REPORT_SIZE'))  # noqa
-#             save_report(log_report, report_file_name)
-#             logging.info("Log parsed successfully")
-#
-# except Exception as E:
-#     logging.exception(E, exc_info=True)
-# else:
-#
+        # TODO: method
+        if user_config.ts_f_path:
+            logging.info('Program completed successfully. TS-file:' + str(user_config.ts_f_path))
+            with io.open(user_config.ts_f_path, mode='w', encoding='utf-8') as ts_file:
+                ts_time = str(round(time.time(), 0))
+                ts_file.write(ts_time.encode().decode())
+        sys.exit(0)
 
 
 if __name__ == '__main__':
