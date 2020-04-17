@@ -14,10 +14,6 @@ __author__ = 'Aleksey Devyatkin <devyatkin.av@ya.ru>'
 # TODO: комментарии привести к 1му языку
 # TODO: verbose comments and docstrings
 
-# TODO: разбить Analyzer
-# TODO: возможность сохранить результаты проверяется после выполнения большего кода программы.
-
-
 import argparse
 import collections
 import datetime
@@ -44,18 +40,27 @@ def singleton_decorator(cls):
 
 
 def log_property_decorator(func):
-    """Декоратор вызывается перед работой property.setter
-       т.к. это property, 0левым аргументом ожидается инстанс класса.
+    """Логгирует результат выполнения функции.
+
+       0 аргументом ожидается инстанс класса
        В качестве логгера ожидается root_logger
+
     """
 
     def wrapper(*args, **kwargs):
+
         # Намеренное обращение по константе, т.к. нужен конкретный логгер.
         instance_logger = getattr(args[0], 'root_logger') if len(args) > 0 else None  # noqa
         result = func(*args, **kwargs)
 
         if instance_logger:
-            instance_logger.debug('{}: {}'.format(func.__name__, result))
+            # Сеттеры не возвращают значения, а сигнатуру имеют как у функции, поэтому выводим аргументы
+
+            loggable_args_list = [str(arg) for arg in args[1:]] if len(args) > 1 else None
+            loggable_args_str = '; '.join(loggable_args_list) if loggable_args_list else None
+
+            loggable_result = result if result else loggable_args_str
+            instance_logger.debug('{}: {}'.format(func.__name__, loggable_result))
 
         return result
 
@@ -63,7 +68,7 @@ def log_property_decorator(func):
 
 
 class Utils:
-    """Абстрактный класс с универсальными утилитами"""
+    """Абстрактный класс для последующего наследования с универсальными утилитами."""
 
     @property
     def _ts_time(self):
@@ -157,13 +162,13 @@ class Utils:
                     yield line
 
     def save_text_file(self, file_path: str, txt_data):
-        """Намеренно не проверяется существование пути."""
+        """Сохраняем файл в текстовом формате."""
         self.check_not_exists(file_path)
         with io.open(file_path, mode='w', encoding='utf-8') as output_f:
             output_f.write(txt_data)
 
     def save_json_file(self, file_path: str, json_data):
-        """Намеренно не проверяется существование пути."""
+        """Сохраняем файл в формате JSON."""
         self.check_not_exists(file_path)
         with io.open(file_path, mode="w", encoding="utf-8") as json_file:  # noqa
             json.dump(json_data, json_file, sort_keys=True, indent=2, ensure_ascii=False)  # noqa
@@ -171,14 +176,12 @@ class Utils:
 
 @singleton_decorator
 class Config(Utils):
-    """
+    """Сущность конфига скрипта.
     Параметры работы:
         report_size: количество url с наибольшим суммарным временем обработки для сохранены в отчете
-
         max_mismatch_percent: % при котором структура обрабатываемого файла считается корректной
         max_mismatch_count: количество промахов при котором структура считается корректной
-        percent: % при котором и max_mismatch_count - связаны по принципу AND
-
+        max_mismatch_percent и max_mismatch_count - связаны по принципу AND
         log_dir: каталог с обрабатываемыми логами
         log_name_pattern: регулярное выражение по которому будут искаться файлы с логами в каталоге log_dir
         log_name_date_pattern: формат даты для поиска в log_name_pattern
@@ -186,8 +189,8 @@ class Config(Utils):
         report_template_path: шаблон для генерации отчета
         template_replace_tag: тэг в шаблоне для замены
         date_fmt: внутренний формат даты для сравнения
-        min_log_date: минимальная дата лога Nginx для поиска
-        web_server_log_pattern: паттерн для разбора строк в логе Nginx
+        min_log_date: минимальная дата лога nginx для поиска
+        web_server_log_pattern: паттерн для разбора строк в логе nginx
 
     Параметры логгирования работы:
         log_level: уровень логгирования
@@ -226,6 +229,17 @@ class Config(Utils):
 
         if config_file:
             self.load(config_file)
+
+    @property
+    def max_mismatch_count(self):
+        return self.__max_mismatch_count
+
+    @max_mismatch_count.setter
+    def max_mismatch_count(self, count: int):
+        assert (isinstance(count, int))
+        if count < 1:
+            count = 1
+        self.__max_mismatch_count = count
 
     @property
     def template_replace_tag(self):
@@ -360,8 +374,7 @@ class Config(Utils):
     @ts_f_path.setter
     def ts_f_path(self, file_path: str):
         assert (isinstance(file_path, str))
-        file_path_directory = os.path.dirname(file_path)
-        self.check_exists(file_path_directory)
+        self.check_not_exists(file_path)
         self.__ts_f_path = file_path
 
     @property
@@ -416,7 +429,14 @@ class Config(Utils):
 
 @singleton_decorator
 class Logging(Utils):
-    """Logger configuration"""
+    """Класс отражающий сущность логгера в скрипте.
+       При удачной инициализации переменные передаются из Config.
+       logfile_date_format: формат даты для хендлера
+       logfile_format: формат сообщения для хендлера
+       log_level: уровень логгирования для хендлера
+       logfile_path: файл для записи лога выполнения. Если указан - пишем в файл, если нет - stdout
+
+    """
 
     def __init__(self,
                  logfile_date_format: str,
@@ -480,12 +500,34 @@ class Logging(Utils):
 
 
 class Analyzer(Utils):
+    """Сущность обработки входящих логов и генерации отчета.
+       Дублирование параметров конфига сделано намеренно, чтобы четко было ясно какие параметры относятся к Analyzer.
+        Параметры работы:
+            date_fmt: внутренний формат даты для сравнения
+            log_dir: каталог с обрабатываемыми логами
+            report_dir: каталог для сохранятения итоговый отчет
+            max_mismatch_percent: % при котором структура обрабатываемого файла считается корректной
+            max_mismatch_count: количество промахов при котором структура считается корректной
+            max_mismatch_percent и max_mismatch_count - связаны по принципу AND
+            report_size: количество url с наибольшим суммарным временем обработки для сохранены в отчете
+            template_path: шаблон для генерации отчета
+            replace_tag: тэг в шаблоне для замены
+            min_log_date: минимальная дата лога nginx для поиска
+            nginx_log_name_re: скомпилированный паттерн для поиска логов nginx
+            web_server_re: скомпилированный паттерн для разбора строк в логе nginx
+            log_name_date_re: спомпилированный паттерн формата даты для поиска в log_name
+
+        Параметры логгирования работы:
+            ts_f_path: внутренний формат даты для сравнения
+            root_logger: настроенный logger для вывода сообщений
+
+        Вычисляемые атрибуты:
+            latest_log: самый свежий лог-файл nginx для парсинга
+            web_server_log_gen: генератор с лог-файлами
+    """
 
     def __init__(self, config: Config, log: Logging):
-        """
-        log: собственный логгер для вывода сообщений
-        TODO: description
-        """
+        """Атрибуты принимающие значения из config не проверяются."""
 
         self.__max_log_date = None
         self.root_logger = log
@@ -495,7 +537,6 @@ class Analyzer(Utils):
         self.nginx_log_name_re = config.log_name_pattern
         self.web_server_re = config.web_server_log_pattern
         self.log_name_date_re = config.log_name_date_pattern
-
         self.report_dir = config.report_dir
         self.max_mismatch_count = config.max_mismatch_count
         self.max_mismatch_percent = config.max_mismatch_percent
@@ -514,8 +555,16 @@ class Analyzer(Utils):
     @max_mismatch_count.setter
     @log_property_decorator
     def max_mismatch_count(self, count: int):
-        assert isinstance(count, int)
         self.__max_mismatch_count = count
+
+    @property
+    def max_mismatch_percent(self):
+        return self.__max_mismatch_percent
+
+    @max_mismatch_percent.setter
+    @log_property_decorator
+    def max_mismatch_percent(self, count: int):
+        self.__max_mismatch_percent = count
 
     @property
     def max_log_date(self):
@@ -528,6 +577,7 @@ class Analyzer(Utils):
         self.__max_log_date = log_date
 
     @property
+    @log_property_decorator
     def report_file_name(self):
         max_log_date = self.date_to_str(self.max_log_date, self.date_fmt)
         file_name = os.path.join(self.report_dir, 'report-{}.html'.format(max_log_date))
@@ -536,23 +586,25 @@ class Analyzer(Utils):
 
     @property
     def nginx_log_name_re(self):
+        """Скомпилированный паттерн для поиска логов nginx"""
         return self.__nginx_log_name_re
 
     @nginx_log_name_re.setter
     @log_property_decorator
     def nginx_log_name_re(self, pattern: str):
-        assert (isinstance(pattern, str))
+        """Скомпилированный паттерн для поиска логов nginx"""
         compiled_re = re.compile(pattern)
         self.__nginx_log_name_re = compiled_re
 
     @property
     def web_server_re(self):
+        """Скомпилированный паттерн для разбора строк в логе nginx"""
         return self.__web_server_re
 
     @web_server_re.setter
     @log_property_decorator
     def web_server_re(self, pattern: str):
-        assert (isinstance(pattern, str))
+        """Скомпилированный паттерн для разбора строк в логе nginx"""
         compiled_re = re.compile(pattern)
         self.__web_server_re = compiled_re
 
@@ -563,7 +615,6 @@ class Analyzer(Utils):
     @log_name_date_re.setter
     @log_property_decorator
     def log_name_date_re(self, pattern: str):
-        assert (isinstance(pattern, str))
         compiled_re = re.compile(pattern)
         self.__log_name_date_re = re.compile(compiled_re)
 
@@ -577,6 +628,7 @@ class Analyzer(Utils):
                     yield file
 
     @property
+    @log_property_decorator
     def latest_log(self):
         """ Find the newest log in the self.log_dir """
 
@@ -592,8 +644,6 @@ class Analyzer(Utils):
 
         if max_log_f_name:
             self.max_log_date = max_log_date
-            self.root_logger.debug('Latest Nginx log file: {}'.format(max_log_f_name))
-            self.root_logger.debug('Max log date: {}'.format(max_log_date))
             return max_log_f_name
 
         raise FileExistsError('Web server log file not found.')
@@ -665,7 +715,6 @@ class Analyzer(Utils):
 
     def save_report(self, report_data, file_path: str):
         """Save the sample report file from reports/report.html"""
-
         pasted_data = self.insert_to_template(report_data)
         self.save_text_file(file_path, pasted_data)
 
@@ -679,9 +728,6 @@ class Analyzer(Utils):
 
         latest_log = self.latest_log
         report_file_name = self.report_file_name
-
-        self.root_logger.debug('Latest log: {}'.format(latest_log))
-        self.root_logger.debug('Report file name: {}'.format(report_file_name))
 
         for line in self.read_file_gen(latest_log):
             parsed_line = self.parse_line(line)
@@ -747,10 +793,9 @@ def main():
         log.info('Configuration file template created.')
         sys.exit(0)
 
-    user_config = Config(args.config)
-    log.update(user_config.public_attrs())
-
     try:
+        user_config = Config(args.config)
+        log.update(user_config.public_attrs())
         analyzer = Analyzer(config=user_config, log=log)
         analyzer.run()
     except (AssertionError, FileExistsError) as error_msg:
