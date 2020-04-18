@@ -5,13 +5,6 @@
 
 __author__ = 'Aleksey Devyatkin <devyatkin.av@ya.ru>'
 
-# TODO: отображение на Github уровеня coverage
-# TODO: разместить где-нибудь шаблоны генерации отчетов?
-# TODO: update readme
-# TODO: комментарии привести к 1му языку
-# TODO: протестировать на 3.6.9, 3.6.4, 3.5.3
-
-
 import argparse
 import collections
 import datetime
@@ -209,12 +202,12 @@ class Config(Utils):
         self.logfile_date_format = '%Y.%m.%d %H:%M:%S'
         self.date_fmt = '%Y%m%d'
         self.min_log_date = '19700101'
-        self.log_dir = 'log'
+        self.log_dir = ''
         self.log_name_pattern = r'nginx-access-ui\.log-[\d]{8}'
         self.log_name_date_pattern = r'[\d]{8}'
-        self.report_dir = 'reports'
+        self.report_dir = ''
         self.log_level = 'INFO'
-        self.report_template_path = 'reports/report.html'
+        self.report_template_path = ''
         self.template_replace_tag = '$table_json'
         self.web_server_log_pattern = r'^\S+\s\S+\s{2}\S+\s\[.*?\]\s\"\S+\s(\S+)\s\S+\"\s\S+\s\S+\s.+?\s\".+?\"\s\S+\s\S+\s\S+\s(\S+)'  # noqa
 

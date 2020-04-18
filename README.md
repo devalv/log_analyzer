@@ -1,51 +1,41 @@
-# Nginx log analyzer
-На данный момент поддерживаемый формат файла настроек - только JSON
+# simple log analyzer
+Поддерживаемые форматы обрабатываемых файлов: **plaintext**, **gz**
 
-## Конфигурирумые параметры:
+Поддерживаемые форматы конфигурационного файла: **json**
 
-"**REPORT_SIZE**": Количество url с наибольшим суммарным временем обработки, которые будут сохранены в отчете
+Пример результата работы с подстановкой в шаблон:
+![report_example.png](report_example.png)
 
-"**REPORT_DIR**": Каталог в который будет сохраняться итоговый отчет
+#### Запуск:
+Использовать конфигурационный файл: 
+`python3 log_analyzer.py --config=config.json`
 
-"**LOG_DIR**": Каталог в котором будет выполняться поиск логов nginx
+Создать шаблон конфигурационного файла с полным перечнем изменяемых параметров: 
+`python3 log_analyzer.py --template=true --config=config.json`
 
-"**TS_F_PATH**": Файл в который будет сохранено время завершения работы (аналогично stat -c %Y log_analyzer.ts)
+#### Параметры конфигурационного файла:
+    "DATE_FMT": формат даты для конвертации.
+    "LOGFILE_DATE_FORMAT": формат даты для ведения лога работы скрипта
+    "LOGFILE_FORMAT": формат ведения лога работы скприта
+    "LOGFILE_PATH": файл для записи лога работы скрипта (если не указан запись в stdout)
+    "LOG_DIR": каталог в котором лежат обрабатываемые файлы
+    "LOG_LEVEL": уровень логгирования работы скрипта
+    "LOG_NAME_DATE_PATTERN": паттерн даты в имени обрабатываемого файла (для поиска последнего)
+    "LOG_NAME_PATTERN": паттерн имени обрабатываемых файлов (иные будут исключаться)
+    "MAX_MISMATCH_COUNT": максимальное количество промахов парсера (связано с % по принципу AND)
+    "MAX_MISMATCH_PERCENT": максимальный % промахов парсера
+    "MIN_LOG_DATE": минимальная дата в имени файлов для обработки
+    "REPORT_DIR": каталог для сохранения итоговых отчетов
+    "REPORT_SIZE": максимальный размер итогового отчета
+    "REPORT_TEMPLATE_PATH": шаблон для подстановки итоговых данных
+    "TEMPLATE_REPLACE_TAG": тэг для замены в шаблоне
+    "TS_F_PATH": файл для запись unixtimestamp (если не указан не пишется)
+    "WEB_SERVER_LOG_PATTERN": паттерн для парсинга строк обрабатываемого файла
 
-"**LOGFILE_PATH**": Файл для записи лога выполнения (если не указан - только на stdout)
+#### Запустить тесты:
+`python3 -m unittest discover tests/`
 
-"**LOGFILE_FORMAT**": Формат записи лога выполнения
+#### Версии Python:
+Протестировано на версии **3.6.9**
 
-"**LOGFILE_DATE_FORMAT**": Формат даты для записи в логе выполнения
 
-"**MAX_MISMATCH_PERC**": % при котором структура обрабатываемого файла считается корректной
-
-## Пример заполненого конфига:
-`{
-"REPORT_SIZE": 1000,
-"REPORT_DIR": "reports",
-"LOG_DIR": "log",
-"TS_F_PATH": "log_analyzer.ts",
-"LOGFILE_PATH": "log_analyzer.log",
-"LOGFILE_FORMAT": "[%(asctime)s] %(levelname).1s %(message)s",
-"LOGFILE_DATE_FORMAT": "%Y.%m.%d %H:%M:%S",
-"MAX_MISMATCH_PERC": 10
-}`
-
-## Ожидаемый формат лога nginx:
-`log_format ui_short '$remote_addr $remote_user $http_x_real_ip [$time_local] "$request" 'log_format ui_short '$remote_addr $remote_user $http_x_real_ip [$time_local] "$request" 'log_format ui_short '$remote_addr $remote_user $http_x_real_ip [$time_local] "$request" '
-'$status $body_bytes_sent "$http_referer" '
-'"$http_user_agent" "$http_x_forwarded_for" "$http_X_REQUEST_ID" "$http_X_RB_USER" '
-'$request_time';`
-
-## Что ожидается от окружения:
-Шаблон для построения отчета находится в файле reports/report.html
-
-## Версии Python:
-Протестировано на версии 3.6.4
-
-## Примеры запуска:
-`python3 log_analyzer.py`
-`python3 log_analyzer.py --config=/home/user/otus/hw1/config.json`
-
-## Тесты:
-`python3 -m unittest discover -v tests/`

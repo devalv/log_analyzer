@@ -7,5 +7,6 @@
   "LOGFILE_FORMAT": "[%(asctime)s] %(levelname).1s %(message)s",
   "LOGFILE_DATE_FORMAT": "%Y.%m.%d %H:%M:%S",
   "MAX_MISMATCH_PERCENT": 10,
-  "LOG_LEVEL": "debug"
+  "LOG_LEVEL": "debug",
+  "REPORT_TEMPLATE_PATH": "template_report.html"
 }
