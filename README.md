@@ -8,9 +8,11 @@
 
 #### Запуск:
 Использовать конфигурационный файл: 
+
 `python3 log_analyzer.py --config=config.json`
 
 Создать шаблон конфигурационного файла с полным перечнем изменяемых параметров: 
+
 `python3 log_analyzer.py --template=true --config=config.json`
 
 #### Параметры конфигурационного файла:
@@ -37,5 +39,7 @@
 
 #### Версии Python:
 Протестировано на версии **3.6.9**
+
+![coverage_report.png](coverage_report.png)
 
 
