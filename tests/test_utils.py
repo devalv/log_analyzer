@@ -5,7 +5,7 @@ import unittest
 import uuid
 from collections.abc import Iterable
 
-from log_analyzer import Utils
+from log_analyzer import Utils, singleton_decorator
 
 
 class TestUtils(unittest.TestCase):
@@ -147,18 +147,23 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(True)
 
 
-# TODO: test def singleton_decorator(cls):
+class TestDecorators(unittest.TestCase):
 
-# TODO: test def log_property_decorator(func):
+    def test_singleton_decorator(self):
 
-# TODO: test def parse_args
+        @singleton_decorator
+        class Singleton:
 
-# TODO: class Logging:
-#     pass
-#
-#
-# TODO: class Analyzer:
-#     pass
+            @property
+            def attr(self):
+                return self.__attr
+
+            @attr.setter
+            def attr(self, value):
+                self.__attr = value
+
+        self.assertEqual(id(Singleton()), id(Singleton()))
+
 
 if __name__ == '__main__':
     unittest.main()

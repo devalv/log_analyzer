@@ -20,13 +20,14 @@ class TestConfig(unittest.TestCase):
 
     def test_1_init_with_template(self):
         """Тест требует, чтобы ранее не было инстанса конфига."""
-        json_data = {'max_mismatch_count': -1, 'max_mismatch_percent': -1}
+        json_data = {'max_mismatch_count': -1, 'max_mismatch_percent': -1, 'report_size': -1}
 
         with io.open(self._template_name, mode="w", encoding="utf-8") as json_file:  # noqa
             json.dump(json_data, json_file, sort_keys=True, indent=2, ensure_ascii=False)  # noqa
         cfg = Config(self._template_name)
         self.assertEqual(1, cfg.max_mismatch_count)
         self.assertEqual(1, cfg.max_mismatch_percent)
+        self.assertEqual(1, cfg.report_size)
         self.assertTrue(True)
 
     def test_create_template(self):
@@ -57,3 +58,7 @@ class TestConfig(unittest.TestCase):
         cls.load(self._template_name)
         self.assertEqual('$edited_tag', cls.template_replace_tag)
         self.assertTrue(True)
+
+
+if __name__ == '__main__':
+    unittest.main()

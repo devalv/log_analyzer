@@ -6,11 +6,10 @@
 __author__ = 'Aleksey Devyatkin <devyatkin.av@ya.ru>'
 
 # TODO: отображение на Github уровеня coverage
+# TODO: разместить где-нибудь шаблоны генерации отчетов?
 # TODO: update readme
 # TODO: комментарии привести к 1му языку
 # TODO: протестировать на 3.6.9, 3.6.4, 3.5.3
-# TODO: Report class?
-# TODO: update tests
 
 
 import argparse
@@ -819,7 +818,6 @@ def main():
     log = Logging('%Y.%m.%d %H:%M:%S', '[%(asctime)s] %(levelname).1s %(message)s')
 
     if args.template:
-        # TODO: test case
         Config().create_template(args.config)
         log.info('Configuration file template created.')
         sys.exit(0)
