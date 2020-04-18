@@ -786,6 +786,7 @@ class Analyzer(Utils):
         log_report = self.make_report(log_stat, total_matched_count, total_time, self.report_size)  # noqa
         self.save_report(log_report, report_file_name)
         logging.info('Log parsed successfully')
+        return report_file_name
 
     def stop(self):
         """Фиксирует время успешного завершения работы Analyzer."""
@@ -796,13 +797,13 @@ class Analyzer(Utils):
             self.root_logger.info('TS file: {}'.format(self.ts_f_path))
             self.save_text_file(self.ts_f_path, ts_time)
 
-    def run(self):
+    def run(self):  # pragma: no cover
         """Запускает и останавливает Analyzer."""
         self.start()
         self.stop()
 
 
-def parse_args():
+def parse_args():  # pragma: no cover
     """Парсер входных аргументов скрипта."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='config.json', type=str,
@@ -812,7 +813,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def main():  # pragma: no cover
     """Инициализация, запуск и верхнеуровневая обработка исключений."""
     args = parse_args()
     log = Logging('%Y.%m.%d %H:%M:%S', '[%(asctime)s] %(levelname).1s %(message)s')
@@ -835,4 +836,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main()  # pragma: no cover
