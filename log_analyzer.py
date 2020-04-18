@@ -6,11 +6,11 @@
 __author__ = 'Aleksey Devyatkin <devyatkin.av@ya.ru>'
 
 # TODO: update readme
+# TODO: комментарии привести к 1му языку
 # TODO: протестировать на 3.6.9, 3.6.4, 3.5.3
+# TODO: Report class?
 # TODO: update tests
 
-# TODO: комментарии привести к 1му языку
-# TODO: вставить комментарии при экспорте конфига?
 
 import argparse
 import collections
@@ -101,7 +101,7 @@ class Utils:
             self.__setattr__(attr.lower(), config_dict[attr])
 
     @staticmethod
-    def check_exists(file_path) -> os.path:
+    def check_exists(file_path: str) -> str:
         """Check file_path for exists."""
         if not os.path.exists(file_path):
             file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), file_path)  # noqa
@@ -112,7 +112,7 @@ class Utils:
         return file_path
 
     @staticmethod
-    def check_not_exists(file_path):
+    def check_not_exists(file_path: str) -> str:
         """Check that there is no file_path."""
         if os.path.exists(file_path):
             raise FileExistsError('File {} already exists.'.format(file_path))
