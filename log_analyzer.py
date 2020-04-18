@@ -5,6 +5,7 @@
 
 __author__ = 'Aleksey Devyatkin <devyatkin.av@ya.ru>'
 
+# TODO: отображение на Github уровеня coverage
 # TODO: update readme
 # TODO: комментарии привести к 1му языку
 # TODO: протестировать на 3.6.9, 3.6.4, 3.5.3
@@ -446,12 +447,11 @@ class Config(Utils):
 
         self.update(file_config)
 
-    @classmethod
-    def create_template(cls, file_path):
+    def create_template(self, file_path):
         """Создаем конфигурационный файл по атрибутам класса."""
         # For extra verbosity keys should be in upper register
-        attrs = {k.upper(): v for k, v in cls().public_attrs().items()}
-        cls.save_json_file(file_path, json_data=attrs)
+        attrs = {k.upper(): v for k, v in self.public_attrs().items()}
+        self.save_json_file(file_path, attrs)
 
 
 @singleton_decorator

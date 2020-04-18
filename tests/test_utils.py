@@ -1,4 +1,4 @@
-"""Тесты класса Utils."""
+"""Тесты класса Utils и публичных функций."""
 import datetime
 import os
 import unittest
@@ -147,15 +147,17 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(True)
 
 
-# class Config:
+# TODO: test def singleton_decorator(cls):
+
+# TODO: test def log_property_decorator(func):
+
+# TODO: test def parse_args
+
+# TODO: class Logging:
 #     pass
 #
 #
-# class Logging:
-#     pass
-#
-#
-# class Analyzer:
+# TODO: class Analyzer:
 #     pass
 
 if __name__ == '__main__':
