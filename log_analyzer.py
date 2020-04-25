@@ -41,7 +41,7 @@ def log_property_decorator(func):
     def wrapper(*args, **kwargs):
 
         # Намеренное обращение по константе, т.к. нужен конкретный логгер.
-        instance_logger = getattr(args[0], 'root_logger') if len(args) > 0 else None  # noqa
+        instance_logger = getattr(args[0], 'root_logger') if args else None  # noqa
         result = func(*args, **kwargs)
 
         if instance_logger:

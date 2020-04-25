@@ -38,7 +38,7 @@
 `python3 -m unittest discover tests/`
 
 #### Версии Python:
-Протестировано на версии **3.6.9**
+Протестировано на версии **3.6.9**, **3.8.2**
 
 ![coverage_report.png](coverage_report.png)
 
